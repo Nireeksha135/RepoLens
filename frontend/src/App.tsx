@@ -4,6 +4,7 @@ import type { AnalyzeResponse } from "./api/types";
 import AskBar from "./components/AskBar";
 import DetailPanel from "./components/DetailPanel";
 import GraphView from "./components/GraphView";
+import ImpactView from "./components/ImpactView";
 import OverviewStats from "./components/OverviewStats";
 import Sidebar, { type View } from "./components/Sidebar";
 
@@ -89,12 +90,22 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex-1 flex min-h-0">
-          <div className="relative flex-1 flex flex-col min-w-0">
-            <OverviewStats overview={data.overview} repoName={data.repo_name} />
-            <GraphView data={data} selectedId={selectedId} onSelect={setSelectedId} />
-          </div>
+          {view === "impact" ? (
+            <ImpactView
+              data={data}
+              onViewInArchitecture={(nodeId) => {
+                setSelectedId(nodeId);
+                setView("architecture");
+              }}
+            />
+          ) : (
+            <div className="relative flex-1 flex flex-col min-w-0">
+              <OverviewStats overview={data.overview} repoName={data.repo_name} />
+              <GraphView data={data} selectedId={selectedId} onSelect={setSelectedId} />
+            </div>
+          )}
 
-          {selectedNode && (
+          {view !== "impact" && selectedNode && (
             <DetailPanel
               node={selectedNode}
               file={selectedFile}
