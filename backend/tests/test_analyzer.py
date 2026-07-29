@@ -152,3 +152,19 @@ class TestEndToEndGraph:
         analysis = analyze_local_repo(str(tmp_path))
         paths = [f.path for f in analysis.files]
         assert paths == ["real.py"]
+        
+    def test_python_dot_prefixed_relative_import_resolves(self, tmp_path: Path):
+        # Regression test: `from .ctx import X` inside pkg/app.py must resolve
+        # to pkg/ctx.py -- the leading dot is a package-level marker, not a
+        # literal path character. (This was broken until the level-aware
+        # resolver was added; a naive path-join treats ".ctx" as a filename.)
+        (tmp_path / "pkg").mkdir()
+        (tmp_path / "pkg/app.py").write_text("from .ctx import Context\n")
+        (tmp_path / "pkg/ctx.py").write_text("class Context:\n    pass\n")
+        (tmp_path / "pkg/sub").mkdir()
+        (tmp_path / "pkg/sub/deep.py").write_text("from ..ctx import Context\n")  # level=2
+
+        analysis = analyze_local_repo(str(tmp_path))
+        edge_pairs = {(e.source, e.target) for e in analysis.edges}
+        assert ("pkg/app.py", "pkg/ctx.py") in edge_pairs
+        assert ("pkg/sub/deep.py", "pkg/ctx.py") in edge_pairs
