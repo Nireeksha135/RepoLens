@@ -1,5 +1,6 @@
 """
-RepoLens backend -- Feature 1 (Repository Analyzer) as a REST API.
+RepoLens backend -- Feature 1 (Repository Analyzer) + Feature 4 (Change
+Impact Analysis) as a REST API.
 
 Run locally:
     pip install -r requirements.txt
@@ -7,6 +8,7 @@ Run locally:
 
 Then:
     POST /analyze  { "repo_url": "https://github.com/user/project" }
+    POST /impact   { "nodes": [...], "edges": [...], "target": "path/to/file.py" }
 """
 from __future__ import annotations
 
@@ -18,6 +20,8 @@ from pydantic import BaseModel
 
 from .analyzer.analyzer import analyze_github_repo
 from .analyzer.git_source import RepoFetchError
+from .analyzer.impact import analyze_impact
+from .analyzer.models import EdgeType, GraphEdge, GraphNode, NodeType
 
 app = FastAPI(title="RepoLens API", version="0.1.0")
 
@@ -31,6 +35,28 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     repo_url: str
+
+
+class GraphNodeIn(BaseModel):
+    id: str
+    type: str
+    label: str
+    file: str | None = None
+
+
+class GraphEdgeIn(BaseModel):
+    source: str
+    target: str
+    type: str
+
+
+class ImpactRequest(BaseModel):
+    # The frontend already has the graph from a prior /analyze call --
+    # impact analysis is pure graph traversal, so there's no need to
+    # re-clone or re-parse the repo to answer "what depends on this file".
+    nodes: list[GraphNodeIn]
+    edges: list[GraphEdgeIn]
+    target: str
 
 
 @app.get("/health")
@@ -61,4 +87,24 @@ def analyze(req: AnalyzeRequest):
             "edges": [asdict(e) for e in result.edges],
         },
         "files": [asdict(f) for f in result.files],
+    }
+
+
+@app.post("/impact")
+def impact(req: ImpactRequest):
+    """Feature 4 -- what breaks if this file changes, bucketed into
+    HIGH / MEDIUM / LOW by hop distance in the dependency graph."""
+    nodes = [GraphNode(id=n.id, type=NodeType(n.type), label=n.label, file=n.file) for n in req.nodes]
+    edges = [GraphEdge(source=e.source, target=e.target, type=EdgeType(e.type)) for e in req.edges]
+
+    if req.target not in {n.id for n in nodes}:
+        raise HTTPException(status_code=404, detail=f"Unknown node: {req.target}")
+
+    result = analyze_impact(nodes, edges, req.target)
+
+    return {
+        "target": result.target,
+        "high": [asdict(n) for n in result.high],
+        "medium": [asdict(n) for n in result.medium],
+        "low": [asdict(n) for n in result.low],
     }
