@@ -73,6 +73,12 @@ class FileAnalysis:
     is_react_component_file: bool = False
     is_db_model_file: bool = False
     parse_error: str | None = None
+    # Truncated raw source, captured before the cloned repo is deleted
+    # (see git_source.cleanup_repo). Only populated for parseable languages
+    # (Python/TS/JS) and capped at MAX_SOURCE_CHARS -- see analyzer.py.
+    # Exists so Ask RepoLens can answer from real code, not just the
+    # structural summary (imports/functions/routes) it used to be limited to.
+    source_snippet: str | None = None
 
 
 @dataclass
