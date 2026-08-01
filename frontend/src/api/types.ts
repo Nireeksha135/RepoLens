@@ -66,6 +66,7 @@ export interface FileAnalysis {
   is_react_component_file: boolean;
   is_db_model_file: boolean;
   parse_error: string | null;
+  source_snippet: string | null;
 }
 
 export interface RepoOverview {
