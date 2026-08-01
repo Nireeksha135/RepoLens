@@ -24,6 +24,20 @@ from .scanner import (
     relative_path,
 )
 
+# Caps how much raw source is retained per file (see FileAnalysis.source_snippet).
+# This is what makes Ask RepoLens answer from real code instead of only
+# structural summary -- but keeping it capped matters because /analyze's
+# response size (and every /chat request's payload) scales with it across
+# every file in the repo, not just the ones a given question retrieves.
+MAX_SOURCE_CHARS = 4000
+TRUNCATION_MARKER = "\n... (truncated)"
+
+
+def _snippet(source: str) -> str:
+    if len(source) <= MAX_SOURCE_CHARS:
+        return source
+    return source[:MAX_SOURCE_CHARS] + TRUNCATION_MARKER
+
 
 def _analyze_one_file(abs_path: Path, rel_path: str) -> FileAnalysis:
     ext = abs_path.suffix.lower()
@@ -37,7 +51,9 @@ def _analyze_one_file(abs_path: Path, rel_path: str) -> FileAnalysis:
             fa = FileAnalysis(path=rel_path, language=language, loc=loc)
             fa.parse_error = str(e)
             return fa
-        return parse_python_file(source, rel_path, loc)
+        result = parse_python_file(source, rel_path, loc)
+        result.source_snippet = _snippet(source)
+        return result
 
     if language in ("TypeScript", "JavaScript"):
         try:
@@ -46,10 +62,13 @@ def _analyze_one_file(abs_path: Path, rel_path: str) -> FileAnalysis:
             fa = FileAnalysis(path=rel_path, language=language, loc=loc)
             fa.parse_error = str(e)
             return fa
-        return parse_js_file(source, rel_path, loc)
+        result = parse_js_file(source, rel_path, loc)
+        result.source_snippet = _snippet(source)
+        return result
 
     # Non-parsed languages (CSS, JSON, Markdown, ...) still count toward
-    # the language breakdown / file count, just without structural detail.
+    # the language breakdown / file count, just without structural detail
+    # or a source snippet.
     return FileAnalysis(path=rel_path, language=language, loc=loc)
 
 
