@@ -1,12 +1,23 @@
 import { useMemo, useState } from "react";
 import { analyzeRepo } from "./api/client";
+import { askRepoLens } from "./api/chat";
 import type { AnalyzeResponse } from "./api/types";
+import ApiExplorerView from "./components/ApiExplorerView";
 import AskBar from "./components/AskBar";
+import ChatAnswerPanel from "./components/ChatAnswerPanel";
 import DetailPanel from "./components/DetailPanel";
 import GraphView from "./components/GraphView";
 import ImpactView from "./components/ImpactView";
 import OverviewStats from "./components/OverviewStats";
 import Sidebar, { type View } from "./components/Sidebar";
+
+interface ChatState {
+  question: string;
+  answer: string | null;
+  sources: string[];
+  loading: boolean;
+  error: string | null;
+}
 
 export default function App() {
   const [repoUrl, setRepoUrl] = useState("");
@@ -15,6 +26,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("architecture");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [chat, setChat] = useState<ChatState | null>(null);
 
   const nodesById = useMemo(
     () => new Map((data?.graph.nodes ?? []).map((n) => [n.id, n])),
@@ -22,6 +34,11 @@ export default function App() {
   );
   const selectedNode = selectedId ? nodesById.get(selectedId) ?? null : null;
   const selectedFile = data?.files.find((f) => f.path === selectedNode?.file);
+
+  const highlightedIds = useMemo(
+    () => (chat?.sources.length ? new Set(chat.sources) : undefined),
+    [chat?.sources]
+  );
 
   async function handleAnalyze() {
     if (!repoUrl.trim()) return;
@@ -38,10 +55,21 @@ export default function App() {
     }
   }
 
-  function handleAsk(question: string) {
-    // Wired up for Feature 3 ("Ask RepoLens") -- the RAG pipeline described
-    // in the spec plugs in here once the backend exposes a /chat endpoint.
-    console.log("TODO: send to /chat ->", question);
+  async function handleAsk(question: string) {
+    if (!data) return;
+    setChat({ question, answer: null, sources: [], loading: true, error: null });
+    try {
+      const res = await askRepoLens(data.files, question);
+      setChat({ question, answer: res.answer, sources: res.sources, loading: false, error: null });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not get an answer.";
+      setChat({ question, answer: null, sources: [], loading: false, error: message });
+    }
+  }
+
+  function goToNode(nodeId: string) {
+    setSelectedId(nodeId);
+    setView("architecture");
   }
 
   if (!data) {
@@ -90,22 +118,23 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex-1 flex min-h-0">
-          {view === "impact" ? (
-            <ImpactView
-              data={data}
-              onViewInArchitecture={(nodeId) => {
-                setSelectedId(nodeId);
-                setView("architecture");
-              }}
-            />
-          ) : (
+          {view === "impact" && <ImpactView data={data} onViewInArchitecture={goToNode} />}
+
+          {view === "apis" && <ApiExplorerView data={data} onNavigate={goToNode} />}
+
+          {view !== "impact" && view !== "apis" && (
             <div className="relative flex-1 flex flex-col min-w-0">
               <OverviewStats overview={data.overview} repoName={data.repo_name} />
-              <GraphView data={data} selectedId={selectedId} onSelect={setSelectedId} />
+              <GraphView
+                data={data}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                highlightedIds={highlightedIds}
+              />
             </div>
           )}
 
-          {view !== "impact" && selectedNode && (
+          {view !== "impact" && view !== "apis" && selectedNode && (
             <DetailPanel
               node={selectedNode}
               file={selectedFile}
@@ -116,6 +145,18 @@ export default function App() {
             />
           )}
         </div>
+
+        {chat && (
+          <ChatAnswerPanel
+            question={chat.question}
+            answer={chat.answer}
+            sources={chat.sources}
+            loading={chat.loading}
+            error={chat.error}
+            onClose={() => setChat(null)}
+            onSelectSource={goToNode}
+          />
+        )}
 
         <AskBar onAsk={handleAsk} />
       </div>
