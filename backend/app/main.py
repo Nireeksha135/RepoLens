@@ -143,6 +143,34 @@ def _to_file_analysis(f: FileAnalysisIn) -> FileAnalysis:
         parse_error=f.parse_error,
     )
 
+class FileAnalysisIn(BaseModel):
+    path: str
+    language: str
+    loc: int = 0
+    imports: list[ImportRefIn] = []
+    functions: list[FunctionInfoIn] = []
+    classes: list[ClassInfoIn] = []
+    api_routes: list[ApiRouteInfoIn] = []
+    is_react_component_file: bool = False
+    is_db_model_file: bool = False
+    parse_error: str | None = None
+    source_snippet: str | None = None
+
+
+def _to_file_analysis(f: FileAnalysisIn) -> FileAnalysis:
+    return FileAnalysis(
+        path=f.path,
+        language=f.language,
+        loc=f.loc,
+        imports=[ImportRef(module=i.module, names=i.names, is_relative=i.is_relative, line=i.line) for i in f.imports],
+        functions=[FunctionInfo(name=fn.name, line=fn.line, is_async=fn.is_async, decorators=fn.decorators) for fn in f.functions],
+        classes=[ClassInfo(name=c.name, line=c.line, bases=c.bases, is_react_component=c.is_react_component) for c in f.classes],
+        api_routes=[ApiRouteInfo(method=r.method, path=r.path, handler=r.handler, line=r.line) for r in f.api_routes],
+        is_react_component_file=f.is_react_component_file,
+        is_db_model_file=f.is_db_model_file,
+        parse_error=f.parse_error,
+        source_snippet=f.source_snippet,
+    )
 
 @app.get("/health")
 def health():
