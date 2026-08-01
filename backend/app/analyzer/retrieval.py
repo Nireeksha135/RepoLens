@@ -76,6 +76,13 @@ def build_chunk(file: FileAnalysis) -> FileChunk:
         tokens.extend(_split_camel_snake(p))
         tokens.extend(_tokenize(p))
 
+    # Also index the actual source text (identifiers, string literals,
+    # comments) when available -- this is what lets a question match on
+    # something only present in code, not captured by any structural field
+    # above (e.g. a variable name, a log message, a comment explaining why).
+    if file.source_snippet:
+        tokens.extend(_tokenize(file.source_snippet))
+
     return FileChunk(path=file.path, text=" ".join(tokens), file=file)
 
 
