@@ -28,34 +28,44 @@ export default function GraphView({
   data,
   selectedId,
   onSelect,
+  highlightedIds,
 }: {
   data: AnalyzeResponse;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  highlightedIds?: Set<string>;
 }) {
   const { nodes, edges } = useMemo(() => {
     const rawNodes: Node<ArchNodeData>[] = data.graph.nodes.map((n) => ({
       id: n.id,
       type: "architecture",
       position: { x: 0, y: 0 },
-      data: { label: n.label, nodeType: n.type, file: n.file, onSelect: (id: string) => onSelect(id), isSelected: n.id === selectedId },
+      data: {
+        label: n.label,
+        nodeType: n.type,
+        file: n.file,
+        onSelect: (id: string) => onSelect(id),
+        isSelected: n.id === selectedId,
+        isHighlighted: highlightedIds?.has(n.id) ?? false,
+      },
     }));
 
     const laidOut = layoutGraph(rawNodes, data.graph.edges as unknown as Edge[]);
 
     const rawEdges: Edge[] = data.graph.edges.map((e, i) => {
-      const highlighted = selectedId != null && (e.source === selectedId || e.target === selectedId);
+      const touchesSelected = selectedId != null && (e.source === selectedId || e.target === selectedId);
+      const touchesHighlighted = !!highlightedIds && (highlightedIds.has(e.source) || highlightedIds.has(e.target));
       return {
         id: `${e.source}->${e.target}-${i}`,
         source: e.source,
         target: e.target,
         type: "signal",
-        data: { edgeType: e.type, highlighted },
+        data: { edgeType: e.type, highlighted: touchesSelected || touchesHighlighted },
       };
     });
 
     return { nodes: laidOut, edges: rawEdges };
-  }, [data, selectedId, onSelect]);
+  }, [data, selectedId, onSelect, highlightedIds]);
 
   return (
     <div className="relative flex-1 blueprint-grid">
