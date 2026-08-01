@@ -83,3 +83,16 @@ class TestRetrieval:
         analysis = analyze_local_repo(str(sample_repo))
         results = retrieve_relevant_files(analysis.files, "xyzzyqwerty12345nonsense", k=5)
         assert results == []
+
+def test_matches_on_source_text_not_just_structure(self, tmp_path: Path):
+        # "ratelimit" appears only inside a comment/local variable in source
+        # -- nothing in imports/functions/classes/routes would surface this
+        # file without indexing the actual source text.
+        (tmp_path / "throttle.py").write_text(
+            "def check():\n"
+            "    # enforce the ratelimit before hitting the upstream API\n"
+            "    pass\n"
+        )
+        analysis = analyze_local_repo(str(tmp_path))
+        results = retrieve_relevant_files(analysis.files, "How is ratelimit enforced?", k=3)
+        assert any(r.path == "throttle.py" for r in results)
