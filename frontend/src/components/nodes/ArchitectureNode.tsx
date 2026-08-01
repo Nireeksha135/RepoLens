@@ -7,6 +7,7 @@ export interface ArchNodeData {
   file: string | null;
   onSelect: (id: string) => void;
   isSelected: boolean;
+  isHighlighted?: boolean; // set by Ask RepoLens when this node is a cited source
 }
 
 // Mirrors the shape legend from the product spec:
@@ -36,6 +37,8 @@ export default function ArchitectureNode({ data, id }: NodeProps<ArchNodeData>) 
   const colorVar = COLOR_VAR_BY_TYPE[data.nodeType];
   const shapeClass = SHAPE_BY_TYPE[data.nodeType];
   const color = `var(${colorVar})`;
+  const ringColor = data.isHighlighted ? "var(--signal)" : color;
+  const active = data.isSelected || data.isHighlighted;
 
   return (
     <div
@@ -46,10 +49,8 @@ export default function ArchitectureNode({ data, id }: NodeProps<ArchNodeData>) 
       className="group flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all cursor-pointer"
       style={{
         background: "var(--bg-elevated)",
-        borderColor: data.isSelected ? color : "var(--border)",
-        boxShadow: data.isSelected
-          ? `0 0 0 1px ${color}, 0 0 16px -2px ${color}`
-          : "none",
+        borderColor: active ? ringColor : "var(--border)",
+        boxShadow: active ? `0 0 0 1px ${ringColor}, 0 0 16px -2px ${ringColor}` : "none",
         minWidth: 176,
       }}
     >
