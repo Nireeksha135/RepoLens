@@ -1,0 +1,36 @@
+# Fly.io config -- https://fly.io/docs/reference/configuration/
+#
+# Deploy from the backend/ directory (this file lives next to the
+# Dockerfile, which is where `flyctl` expects it):
+#
+#   cd backend
+#   fly launch --no-deploy   # generates/confirms this file, creates the app
+#   fly secrets set ANTHROPIC_API_KEY=sk-ant-...
+#   fly secrets set ALLOWED_ORIGINS=https://repolens.vercel.app
+#   fly deploy
+#
+# Change `app` below to whatever name `fly launch` assigns (it must be
+# globally unique on Fly), and update the frontend's VITE_API_BASE_URL to
+# match the resulting https://<app>.fly.dev URL.
+app = "repolens-backend"
+primary_region = "iad"
+
+[build]
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
