@@ -1,0 +1,21 @@
+# Render Blueprint -- https://render.com/docs/blueprint-spec
+#
+# Deploy: push this repo to GitHub, then in Render dashboard choose
+# "New > Blueprint" and point it at the repo. Render reads this file and
+# provisions the service automatically.
+#
+# You'll be prompted to fill in the "sync: false" env vars (secrets) --
+# ANTHROPIC_API_KEY and ALLOWED_ORIGINS -- in the dashboard rather than
+# committing them here.
+services:
+  - type: web
+    name: repolens-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false  # set to your deployed frontend origin, e.g. https://repolens.vercel.app
