@@ -14,6 +14,8 @@ Then:
     POST /api-routes   { "nodes": [...], "edges": [...], "handlers": {...} }
     POST /chat         { "files": [...], "question": "..." }
 """
+import os
+
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -41,13 +43,25 @@ from .analyzer.models import (
 
 app = FastAPI(title="RepoLens API", version="0.1.0")
 
+# ALLOWED_ORIGINS is a comma-separated list, e.g.
+# "https://repolens.vercel.app,https://repolens.example.com". Falls back to
+# "*" only when the env var is entirely unset, so local dev keeps working
+# without configuration -- but that means the wildcard is the *unconfigured*
+# state, not a deliberate production choice. Set ALLOWED_ORIGINS explicitly
+# before deploying anywhere public.
+_allowed_origins_env = os.environ.get("ALLOWED_ORIGINS")
+ALLOWED_ORIGINS = (
+    [o.strip() for o in _allowed_origins_env.split(",") if o.strip()]
+    if _allowed_origins_env
+    else ["*"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten before deploying beyond local dev
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 class AnalyzeRequest(BaseModel):
     repo_url: str
