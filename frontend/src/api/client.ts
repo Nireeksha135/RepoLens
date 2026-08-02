@@ -1,10 +1,8 @@
 import axios from "axios";
+import { API_BASE_URL } from "./config";
 import type { AnalyzeResponse } from "./types";
 
-// In dev, Vite proxies /api -> http://localhost:8000 (see vite.config.ts),
-// so this works unchanged whether the backend runs locally or is deployed
-// behind the same origin in production.
-const client = axios.create({ baseURL: "/api" });
+const client = axios.create({ baseURL: API_BASE_URL });
 
 export async function analyzeRepo(repoUrl: string): Promise<AnalyzeResponse> {
   const { data } = await client.post<AnalyzeResponse>("/analyze", {
