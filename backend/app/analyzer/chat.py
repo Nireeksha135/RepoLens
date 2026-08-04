@@ -1,12 +1,16 @@
 """
 Feature 3 -- Ask RepoLens (generation half of the RAG pipeline).
 
-Takes the files retrieval.py judged relevant, builds a compact structural
-context block, and asks Claude to answer using only that context -- same
-"retrieve then generate" shape as any RAG system, just scoped to a
-repository's structure instead of documents.
+Takes the files retrieval.py judged relevant, builds a compact context
+block (structure + real source snippets), and asks Gemini to answer using
+only that context -- same "retrieve then generate" shape as any RAG
+system, just scoped to a repository's structure instead of documents.
 
-Requires ANTHROPIC_API_KEY in the environment. This never falls back to
+Uses Gemini (via the `google-genai` SDK -- not the older, now-deprecated
+`google-generativeai` package) specifically because its free tier is
+actually free for a solo/demo project, unlike pay-per-token APIs.
+
+Requires GEMINI_API_KEY in the environment. This never falls back to
 guessing without a key -- callers get a clear, typed error instead of a
 silently wrong answer.
 """
@@ -14,14 +18,17 @@ from __future__ import annotations
 
 import os
 
-from anthropic import Anthropic
+from google import genai
+from google.genai import types
 
 from .models import FileAnalysis
 from .retrieval import FileChunk, retrieve_relevant_files
 
-# Update this if/when a newer model should be used -- kept as one constant
-# rather than scattered through the module.
-MODEL = "claude-sonnet-5"
+# Update this if/when a newer/better free-tier model should be used -- kept
+# as one constant rather than scattered through the module. Check
+# https://ai.google.dev/gemini-api/docs/models for current free-tier limits
+# and model names before relying on this in production; both can change.
+MODEL = "gemini-2.0-flash"
 
 SYSTEM_PROMPT = """You are RepoLens, a codebase intelligence assistant. Answer \
 questions about a specific repository using ONLY the context provided below \
@@ -60,26 +67,26 @@ def _format_context(chunks: list[FileChunk]) -> str:
 
 
 def ask_repolens(files: list[FileAnalysis], question: str) -> dict:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ChatConfigError(
-            "ANTHROPIC_API_KEY is not set. Ask RepoLens needs an Anthropic API "
-            "key in the backend environment to generate answers."
+            "GEMINI_API_KEY is not set. Ask RepoLens needs a Gemini API key "
+            "in the backend environment to generate answers."
         )
 
     relevant = retrieve_relevant_files(files, question, k=6)
     context = _format_context(relevant)
 
-    client = Anthropic(api_key=api_key)
-    response = client.messages.create(
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
         model=MODEL,
-        max_tokens=1000,
-        system=SYSTEM_PROMPT,
-        messages=[
-            {"role": "user", "content": f"Repository context:\n\n{context}\n\nQuestion: {question}"}
-        ],
+        contents=f"Repository context:\n\n{context}\n\nQuestion: {question}",
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            max_output_tokens=1000,
+        ),
     )
 
-    answer_text = "".join(block.text for block in response.content if block.type == "text")
+    answer_text = response.text or ""
 
     return {"answer": answer_text, "sources": [c.path for c in relevant]}
