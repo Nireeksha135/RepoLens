@@ -1,14 +1,11 @@
-# RepoLens backend. Portable across Render, Fly.io, Railway, or any
-# container platform -- nothing platform-specific baked in except reading
-# $PORT, which every one of them sets.
+# RepoLens backend. Only relevant if deploying to Render, Fly.io, Railway,
+# or another container platform -- the primary/documented path is now
+# Vercel (see api/index.py + vercel.json), which doesn't use this at all.
+#
+# No apt-get / system git needed anymore: repos are fetched via GitHub's
+# tarball download (see analyzer/git_source.py), not `git clone`, so this
+# image only needs Python + pip dependencies.
 FROM python:3.12-slim
-
-# GitPython shells out to a real `git` binary -- python:slim doesn't ship
-# one. Cloning is the very first thing /analyze does, so this is not
-# optional.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
