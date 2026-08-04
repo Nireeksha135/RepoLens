@@ -15,7 +15,7 @@ services:
     dockerContext: ./backend
     healthCheckPath: /health
     envVars:
-      - key: ANTHROPIC_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false  # set to your deployed frontend origin, e.g. https://repolens.vercel.app
