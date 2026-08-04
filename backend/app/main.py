@@ -5,7 +5,7 @@ as a REST API.
 
 Run locally:
     pip install -r requirements.txt
-    export ANTHROPIC_API_KEY=...   # only needed for POST /chat
+    export GEMINI_API_KEY=...      # only needed for POST /chat
     uvicorn app.main:app --reload
 
 Then:
