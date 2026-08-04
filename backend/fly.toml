@@ -5,7 +5,7 @@
 #
 #   cd backend
 #   fly launch --no-deploy   # generates/confirms this file, creates the app
-#   fly secrets set GEMINI_API_KEY=sk-ant-...
+#   fly secrets set GEMINI_API_KEY=AIza...
 #   fly secrets set ALLOWED_ORIGINS=https://repolens.vercel.app
 #   fly deploy
 #
